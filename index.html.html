@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flashcard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#e8edf4; --ink:#1b2a45; --muted:#5a6a86; --paper:#fff; --rule:#b5c9ea;
+  --red:#d23f3f; --btn:#1b2a45; --btn-ink:#fff; --edge:#c5d1e4; --warn:#b4540a;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#121a2a; --ink:#e8eefb; --muted:#97a6c4; --paper:#1c2740; --rule:#31456b;
+        --red:#ef6b6b; --btn:#e8eefb; --btn-ink:#121a2a; --edge:#2d3c5c; --warn:#f0a35e;}
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:"Sarabun","Noto Sans Thai",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;
+  padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+main{max-width:760px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.6rem;margin:0 0 4px}
+h2{font-size:1.1rem;margin:28px 0 10px}
+p.sub{margin:0 0 20px;color:var(--muted)}
+[hidden]{display:none!important}
+input,textarea{width:100%;font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--edge);border-radius:8px;padding:10px}
+textarea{min-height:170px;resize:vertical;line-height:1.7}
+label{font-weight:600;display:block;margin-bottom:6px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.count{font-size:.85rem;color:var(--muted);margin-top:4px}
+.warn{color:var(--warn);font-weight:600}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--edge);background:var(--paper);color:var(--ink);padding:8px 14px}
+button.primary{background:var(--btn);color:var(--btn-ink);border-color:var(--btn);font-weight:600}
+button:focus-visible,input:focus-visible,textarea:focus-visible,.card:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px}
+.deck{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;align-items:center;background:var(--paper);border:1px solid var(--edge);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+.deck b{display:block}.deck small{color:var(--muted)}
+.clean{margin-top:14px;padding:12px 14px;background:var(--paper);border:1px solid var(--edge);border-left:4px solid var(--red);border-radius:8px}
+.clean p{margin:10px 0 4px}
+.opt{display:flex;gap:8px;align-items:center;font-weight:400;margin:4px 0}
+input[type=radio]{width:auto}
+.ex{color:var(--muted);font-weight:400}
+.danger{background:var(--red)!important;border-color:var(--red)!important;color:#fff!important}
+.empty{color:var(--muted);padding:8px 0}
+@media (max-width:520px){.cols{grid-template-columns:1fr}}
+
+/* study */
+.scene{perspective:1200px;margin:18px 0}
+.card{display:block;width:100%;height:280px;padding:0;border:0;background:none;position:relative;transform-style:preserve-3d;transition:transform .45s}
+.card.flip{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;display:flex;align-items:center;justify-content:center;
+  text-align:center;padding:24px;font-size:clamp(1.6rem,6vw,2.4rem);font-weight:700;overflow-wrap:anywhere;
+  background:var(--paper);border-radius:10px;border-top:4px solid var(--red);
+  background-image:repeating-linear-gradient(transparent 0 38px,var(--rule) 38px 39px);background-position:0 20px;
+  box-shadow:0 2px 0 var(--edge),0 10px 24px rgba(20,35,70,.12)}
+.back{transform:rotateY(180deg)}
+.hint{text-align:center;color:var(--muted);font-size:.9rem}
+.nav{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.stats{display:flex;justify-content:space-between;font-weight:600}
+.bar{height:6px;background:var(--edge);border-radius:3px;overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;width:0;background:var(--red);transition:width .3s}
+.answers{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.answers button{padding:14px;font-weight:700;font-size:1.05rem}
+.answers .no{border-color:var(--warn);color:var(--warn)}
+.answers .yes{background:var(--btn);color:var(--btn-ink);border-color:var(--btn)}
+.scene.go-right{animation:outR .26s ease-in forwards}
+.scene.go-left{animation:outL .26s ease-in forwards}
+@keyframes outR{to{transform:translateX(110%) rotate(8deg);opacity:0}}
+@keyframes outL{to{transform:translateX(-110%) rotate(-8deg);opacity:0}}
+.done{text-align:center;padding:36px 0}
+main{overflow-x:clip}
+@media (prefers-reduced-motion:reduce){.card{transition:none}.scene.go-right,.scene.go-left{animation-duration:.01s}}
+</style>
+</head>
+<body>
+<main>
+
+<!-- หน้าหลัก: สร้างและเลือกชุดคำศัพท์ -->
+<section id="home">
+  <h1>Flashcard</h1>
+  <p class="sub">วางคำในช่องซ้าย คำแปลในช่องขวา บรรทัดเดียวกันจะจับคู่กันเอง</p>
+
+  <label for="name">ชื่อชุด</label>
+  <input id="name" placeholder="เช่น ผลไม้และสัตว์">
+
+  <div class="cols">
+    <div>
+      <label for="colA">คำ</label>
+      <textarea id="colA" placeholder="Apple&#10;Bird"></textarea>
+      <div class="count" id="cntA"></div>
+    </div>
+    <div>
+      <label for="colB">คำแปล</label>
+      <textarea id="colB" placeholder="แอปเปิ้ล&#10;นก"></textarea>
+      <div class="count" id="cntB"></div>
+    </div>
+  </div>
+  <div class="count" id="match"></div>
+
+  <div class="clean" id="cleanBox" hidden>
+    <b>พบคำบอกชนิดคำ เช่น (n.) (v.) (คำนาม) (กริยา)</b>
+    <div id="cleanInline" hidden>
+      <p>ติดอยู่หลังคำ <span id="nIn"></span> จุด <span class="ex">เช่น <span id="exIn"></span></span></p>
+      <label class="opt"><input type="radio" name="mi" value="keep" checked> เก็บไว้ตามเดิม</label>
+      <label class="opt"><input type="radio" name="mi" value="remove"> ลบส่วนนั้นทิ้ง เหลือแค่คำ</label>
+    </div>
+    <div id="cleanSep" hidden>
+      <p>ตกไปอยู่คนละบรรทัด <span id="nSep"></span> จุด <span class="ex">เช่น <span id="exSep"></span></span></p>
+      <label class="opt"><input type="radio" name="ms" value="merge" checked> ดึงขึ้นไปต่อท้ายคำก่อนหน้า เช่น bird (n.)</label>
+      <label class="opt"><input type="radio" name="ms" value="drop"> ลบบรรทัดนั้นทิ้ง</label>
+    </div>
+    <div class="row">
+      <button class="primary" id="cleanOk">ทำตามที่เลือกแล้วบันทึก</button>
+      <button id="cleanSkip">บันทึกตามเดิม</button>
+      <button id="cleanCancel">ยกเลิก</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <button class="primary" id="saveBtn">บันทึกชุดนี้</button>
+    <button id="clearBtn">ล้างช่อง</button>
+  </div>
+
+  <h2>ชุดที่บันทึกไว้</h2>
+  <div id="list"></div>
+
+  <div class="row">
+    <button id="exportBtn">ดาวน์โหลดสำรอง (.json)</button>
+    <button id="importBtn">นำเข้าไฟล์สำรอง</button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+  </div>
+</section>
+
+<!-- หน้าเรียน -->
+<section id="study" hidden>
+  <h2 id="deckTitle" style="margin-top:0"></h2>
+  <div class="stats"><span id="knownTxt"></span><span id="playedTxt"></span></div>
+  <div class="bar"><i id="barFill"></i></div>
+
+  <div id="play">
+    <div class="scene" id="scene">
+      <button class="card" id="card" aria-label="พลิกการ์ด">
+        <span class="face front" id="front"></span>
+        <span class="face back" id="back"></span>
+      </button>
+    </div>
+    <p class="hint">แตะการ์ดเพื่อดูคำแปล แล้วเลือกว่าจำได้หรือยัง</p>
+    <div class="answers">
+      <button class="no" id="noBtn">← ยังไม่แม่น</button>
+      <button class="yes" id="yesBtn">จำได้แล้ว →</button>
+    </div>
+    <p class="hint">ปัดการ์ดหรือกดลูกศรซ้าย/ขวาได้เหมือนกัน ใบที่ยังไม่แม่นจะวนกลับมาให้ทบทวน</p>
+  </div>
+
+  <div class="done" id="done" hidden>
+    <h2>จำได้ครบทุกใบแล้ว</h2>
+    <p class="sub" id="doneTxt"></p>
+    <div class="row" style="justify-content:center"><button class="primary" id="againBtn">เรียนอีกรอบ</button></div>
+  </div>
+
+  <div class="nav" style="margin-top:24px">
+    <button id="backBtn">← กลับ</button>
+    <button id="shuffleBtn">สลับลำดับ</button>
+    <button id="reverseBtn">แสดงคำแปลก่อน</button>
+  </div>
+</section>
+
+</main>
+
+<script>
+const KEY = 'flashcard.decks.v1';
+const $ = id => document.getElementById(id);
+let decks = loadDecks();
+let editingId = null;
+let cur = null, reverse = false;
+
+function loadDecks(){
+  try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; }
+}
+function saveDecks(){
+  try { localStorage.setItem(KEY, JSON.stringify(decks)); }
+  catch(e){ alert('บันทึกลงเบราว์เซอร์ไม่ได้ ลองกดดาวน์โหลดสำรองไว้แทน'); }
+}
+
+// จับคู่ตามเลขบรรทัด: บรรทัดที่ n ของช่องซ้าย คู่กับบรรทัดที่ n ของช่องขวา
+function pairs(d){
+  const a = d.colA.split('\n'), b = d.colB.split('\n'), out = [];
+  for (let k = 0; k < Math.max(a.length, b.length); k++){
+    const x = (a[k] || '').trim(), y = (b[k] || '').trim();
+    if (x && y) out.push([x, y]);
+  }
+  return out;
+}
+function lineCount(t){ const s = t.replace(/\s+$/, ''); return s ? s.split('\n').length : 0; }
+
+function updateCounts(){
+  $('cleanBox').hidden = true;
+  const a = lineCount($('colA').value), b = lineCount($('colB').value);
+  $('cntA').textContent = a + ' บรรทัด';
+  $('cntB').textContent = b + ' บรรทัด';
+  const m = $('match');
+  if (a !== b){ m.textContent = 'จำนวนบรรทัดไม่เท่ากัน (' + a + ' กับ ' + b + ') บรรทัดที่ไม่มีคู่จะถูกข้าม'; m.className = 'count warn'; }
+  else if (a > 0){ m.textContent = 'จับคู่ได้ ' + pairs({colA:$('colA').value, colB:$('colB').value}).length + ' คู่'; m.className = 'count'; }
+  else { m.textContent = ''; }
+}
+
+function renderList(){
+  const box = $('list');
+  box.textContent = '';
+  if (!decks.length){
+    const p = document.createElement('div');
+    p.className = 'empty';
+    p.textContent = 'ยังไม่มีชุดที่บันทึก ลองวางคำศัพท์ด้านบนแล้วกดบันทึก';
+    box.appendChild(p); return;
+  }
+  decks.forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'deck';
+    const info = document.createElement('div');
+    const b = document.createElement('b'); b.textContent = d.name;
+    const s = document.createElement('small'); s.textContent = pairs(d).length + ' คำ';
+    info.append(b, s);
+    const acts = document.createElement('div');
+    acts.className = 'row'; acts.style.margin = '0';
+    [['เรียน','study',true],['แก้ไข','edit'],['ลบ','del']].forEach(([label, act, prim]) => {
+      const btn = document.createElement('button');
+      btn.textContent = label; btn.dataset.act = act; btn.dataset.id = d.id;
+      if (prim) btn.className = 'primary';
+      acts.appendChild(btn);
+    });
+    el.append(info, acts);
+    box.appendChild(el);
+  });
+}
+
+function clearForm(){
+  editingId = null;
+  $('name').value = ''; $('colA').value = ''; $('colB').value = '';
+  $('saveBtn').textContent = 'บันทึกชุดนี้';
+  updateCounts();
+}
+
+function commit(A, B){
+  const d = { id: editingId || String(Date.now()), name: $('name').value.trim() || 'ชุดไม่มีชื่อ', colA: A, colB: B };
+  if (!pairs(d).length){ const m = $('match'); m.textContent = 'ยังไม่มีคู่คำ ใส่คำทั้งสองช่องก่อน'; m.className = 'count warn'; return; }
+  const i = decks.findIndex(x => x.id === d.id);
+  if (i >= 0) decks[i] = d; else decks.push(d);
+  saveDecks(); renderList(); clearForm();
+};
+// ---- ชนิดคำ (n. v. adj. ...)
+const EN = '(?:n|v|vt|vi|adj|adv|prep|pron|conj|interj|det|art|aux)';
+const THAB = '(?:น|ก|ว|บ|สัน|สรร|อ|กวิ)\\.';
+const THFULL = '(?:คำ\\s*)?(?:กริยาวิเศษณ์|คุณศัพท์|วิเศษณ์|สรรพนาม|บุพบท|สันธาน|อุทาน|กริยา|นาม)';
+const ENFULL = '(?:noun|verb|adjective|adverb|preposition|pronoun|conjunction|interjection)';
+const SEP = '[\\s.,/&]*';
+const IN_B = '(?:' + EN + '|' + THAB + '|' + THFULL + '|' + ENFULL + ')';      // ในวงเล็บ
+const SEQ_B = IN_B + '(?:' + SEP + IN_B + ')*';
+const IN_BARE = '(?:' + EN + '\\.|' + THAB + '|' + THFULL + ')';                  // ไม่มีวงเล็บ ต้องมีจุดหรือเป็นคำไทยเต็ม
+const SEQ_BARE = IN_BARE + '(?:' + SEP + IN_BARE + ')*';
+const INLINE_PAREN = new RegExp('\\s*[(\\[（]\\s*' + SEQ_B + SEP + '[)\\]）]\\s*$', 'i');
+const INLINE_BARE = new RegExp('^(.*?\\S)\\s+' + SEQ_BARE + SEP + '$', 'i');
+const IN_BRACKET = new RegExp('^' + SEQ_B + SEP + '$', 'i');
+const LINE_BARE = new RegExp('^' + SEQ_BARE + SEP + '$', 'i');
+function isMarkerLine(t){
+  const m = t.match(/^[(\[（](.+)[)\]）]$/);
+  if (m) return IN_BRACKET.test(m[1].trim());
+  return LINE_BARE.test(t);
+}
+// mi: 'keep' | 'remove' (ติดอยู่หลังคำ) / ms: 'merge' | 'drop' (อยู่คนละบรรทัด)
+function process(text, mi, ms){
+  const out = [], r = { nIn:0, nSep:0, exIn:'', exSep:'' };
+  text.split('\n').forEach(line => {
+    const t = line.trim();
+    if (t && isMarkerLine(t)){
+      r.nSep++;
+      let j = out.length - 1;
+      while (j >= 0 && !out[j].trim()) j--;          // ข้ามบรรทัดว่าง หาคำก่อนหน้าที่อยู่ใกล้สุด
+      if (!r.exSep && j >= 0) r.exSep = out[j].trim() + '  ↵  ' + t;
+      if (ms === 'merge' && j >= 0) out[j] = out[j].trimEnd() + ' ' + (/^[(\[（]/.test(t) ? t : '(' + t + ')');
+      return;
+    }
+    let l = line, m;
+    if (INLINE_PAREN.test(l)){
+      r.nIn++; if (!r.exIn) r.exIn = t;
+      if (mi === 'remove') l = l.replace(INLINE_PAREN, '');
+    } else if ((m = t.match(INLINE_BARE))){
+      r.nIn++; if (!r.exIn) r.exIn = t;
+      if (mi === 'remove') l = m[1];
+    }
+    out.push(l);
+  });
+  return Object.assign({ text: out.join('\n') }, r);
+}
+// ---- end ชนิดคำ
+
+$('saveBtn').onclick = () => {
+  const A = $('colA').value, B = $('colB').value;
+  const a = process(A, 'keep', 'merge'), b = process(B, 'keep', 'merge');
+  const nIn = a.nIn + b.nIn, nSep = a.nSep + b.nSep;
+  if (!nIn && !nSep){ commit(A, B); return; }
+  $('cleanInline').hidden = !nIn; $('cleanSep').hidden = !nSep;
+  $('nIn').textContent = nIn; $('exIn').textContent = a.exIn || b.exIn;
+  $('nSep').textContent = nSep; $('exSep').textContent = a.exSep || b.exSep;
+  $('cleanBox').hidden = false;
+  $('cleanBox').scrollIntoView({ block:'nearest' });
+};
+$('cleanOk').onclick = () => {
+  const mi = document.querySelector('input[name=mi]:checked').value;
+  const ms = document.querySelector('input[name=ms]:checked').value;
+  const A = process($('colA').value, mi, ms).text, B = process($('colB').value, mi, ms).text;
+  $('colA').value = A; $('colB').value = B;
+  commit(A, B);
+};
+$('cleanSkip').onclick = () => commit($('colA').value, $('colB').value);
+$('cleanCancel').onclick = () => { $('cleanBox').hidden = true; };
+
+$('clearBtn').onclick = clearForm;
+$('colA').oninput = $('colB').oninput = updateCounts;
+
+$('list').onclick = e => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  const d = decks.find(x => x.id === btn.dataset.id); if (!d) return;
+  if (btn.dataset.act === 'study') startStudy(d);
+  if (btn.dataset.act === 'edit'){
+    editingId = d.id; $('name').value = d.name; $('colA').value = d.colA; $('colB').value = d.colB;
+    $('saveBtn').textContent = 'อัปเดตชุดนี้'; updateCounts(); window.scrollTo({top:0});
+  }
+  if (btn.dataset.act === 'del'){
+    // กดครั้งแรกให้ปุ่มเปลี่ยนเป็น "ยืนยันลบ" กดอีกครั้งจึงลบจริง (ไม่ใช้ confirm เพราะบางเบราว์เซอร์/พรีวิวบล็อก)
+    if (!btn.dataset.sure){
+      btn.dataset.sure = '1'; btn.textContent = 'ยืนยันลบ'; btn.classList.add('danger');
+      setTimeout(() => { if (btn.isConnected){ delete btn.dataset.sure; btn.textContent = 'ลบ'; btn.classList.remove('danger'); } }, 3000);
+      return;
+    }
+    decks = decks.filter(x => x.id !== d.id); saveDecks(); renderList();
+    if (editingId === d.id) clearForm();
+  }
+};
+
+// สำรองข้อมูล
+$('exportBtn').onclick = async () => {
+  let dl = null;
+  try { dl = window.claude ? await claude.use('downloads') : null; } catch(e){}
+  if (!dl){ alert('ดาวน์โหลดไฟล์ไม่ได้ในหน้านี้'); return; }
+  try { await dl.save({ filename: 'flashcard-backup.json', data: JSON.stringify(decks, null, 2) }); }
+  catch(err){ if (!err || err.code !== 'declined') alert('ดาวน์โหลดไม่สำเร็จ ลองใหม่อีกครั้ง'); }
+};
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const data = JSON.parse(r.result);
+      if (!Array.isArray(data)) throw 0;
+      data.forEach((d, n) => {
+        if (typeof d.colA === 'string' && typeof d.colB === 'string')
+          decks.push({ id: Date.now() + '-' + n, name: String(d.name || 'ชุดนำเข้า'), colA: d.colA, colB: d.colB });
+      });
+      saveDecks(); renderList();
+    } catch(err){ alert('อ่านไฟล์ไม่ได้ ต้องเป็นไฟล์สำรองที่ดาวน์โหลดจากหน้านี้'); }
+    e.target.value = '';
+  };
+  r.readAsText(f);
+};
+
+// โหมดเรียน
+let queue = [], known = 0, played = 0, total = 0, busy = false;
+
+function startStudy(d){
+  cur = d; total = pairs(d).length;
+  $('deckTitle').textContent = d.name;
+  $('home').hidden = true; $('study').hidden = false;
+  begin();
+}
+function begin(){
+  queue = pairs(cur); known = 0; played = 0;
+  $('done').hidden = true; $('play').hidden = false;
+  show();
+}
+function show(){
+  $('knownTxt').textContent = 'จำได้แล้ว ' + known + ' จาก ' + total;
+  $('playedTxt').textContent = 'เล่นไปแล้ว ' + played + ' ใบ';
+  $('barFill').style.width = (total ? known / total * 100 : 0) + '%';
+  if (!queue.length){
+    $('play').hidden = true; $('done').hidden = false;
+    $('doneTxt').textContent = 'จำได้ ' + total + ' คำ ใช้การ์ดทั้งหมด ' + played + ' ใบ';
+    return;
+  }
+  const [w, t] = queue[0], card = $('card');
+  card.style.transition = 'none'; card.classList.remove('flip'); void card.offsetWidth; card.style.transition = '';
+  $('front').textContent = reverse ? t : w;
+  $('back').textContent = reverse ? w : t;
+}
+// ขวา = จำได้แล้ว (ออกจากกอง) / ซ้าย = ยังไม่แม่น (ไปต่อท้ายกอง วนกลับมาใหม่)
+function answer(isKnown){
+  if (busy || !queue.length) return;
+  busy = true;
+  const sc = $('scene');
+  sc.classList.add(isKnown ? 'go-right' : 'go-left');
+  setTimeout(() => {
+    const c = queue.shift(); played++;
+    if (isKnown) known++; else queue.push(c);
+    sc.classList.remove('go-right', 'go-left');
+    busy = false; show();
+  }, 260);
+}
+$('card').onclick = () => $('card').classList.toggle('flip');
+$('yesBtn').onclick = () => answer(true);
+$('noBtn').onclick = () => answer(false);
+$('againBtn').onclick = begin;
+$('shuffleBtn').onclick = () => {
+  for (let i = queue.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [queue[i], queue[j]] = [queue[j], queue[i]]; }
+  show();
+};
+$('reverseBtn').onclick = () => {
+  reverse = !reverse;
+  $('reverseBtn').textContent = reverse ? 'แสดงคำก่อน' : 'แสดงคำแปลก่อน';
+  if (queue.length) show();
+};
+$('backBtn').onclick = () => { $('study').hidden = true; $('home').hidden = false; };
+document.addEventListener('keydown', e => {
+  if ($('study').hidden) return;
+  if (e.key === 'ArrowRight') answer(true);
+  if (e.key === 'ArrowLeft') answer(false);
+});
+let sx = null;
+$('card').addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, {passive:true});
+$('card').addEventListener('touchend', e => {
+  if (sx === null) return;
+  const dx = e.changedTouches[0].clientX - sx; sx = null;
+  if (Math.abs(dx) > 70) answer(dx > 0);
+}, {passive:true});
+
+renderList(); updateCounts();
+</script>
+</body>
+</html>

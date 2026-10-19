@@ -42,9 +42,36 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,.card:focus-visi
 .opt{display:flex;gap:8px;align-items:center;font-weight:400;margin:4px 0}
 input[type=radio]{width:auto}
 .ex{color:var(--muted);font-weight:400}
+.ta{position:relative;background:var(--paper);border-radius:8px}
+.ta textarea{display:block;position:relative;z-index:1;background:transparent}
+.mir{display:block;position:absolute;inset:0;overflow:hidden;border:1px solid transparent;border-radius:8px;padding:10px 10px 10px 40px;font:inherit;line-height:1.7;pointer-events:none}
+.ta textarea{padding-left:40px}
+.mi{position:relative;white-space:pre-wrap;overflow-wrap:break-word;counter-reset:ln}
+.ln{position:relative;color:transparent;counter-increment:ln}
+.ln::before{content:counter(ln);position:absolute;left:-34px;width:28px;text-align:right;color:var(--muted);font-size:.8em}
+.ta.hl .ln{color:var(--ink)}
+.ta.hl .mir{display:block}
+.ta.hl textarea{color:transparent;caret-color:var(--ink)}
+.ta.hl textarea::selection{background:rgba(90,120,220,.35);color:transparent}
+.ln.bad{background:rgba(210,63,63,.15)}
+.ta.hl .ln.bad{color:var(--red)}
+.ln.blank{background:rgba(210,63,63,.15)}
+.ln.cur{background:rgba(210,63,63,.3)}
+button.lnk{border:0;background:none;color:var(--red);text-decoration:underline;padding:0;cursor:pointer;font:inherit}
+.plist{max-height:55vh;overflow:auto;margin:8px 0;border:1px solid var(--edge);border-radius:8px}
+.prow{display:grid;grid-template-columns:34px 1fr 1fr;gap:6px;padding:3px 6px;border-top:1px solid var(--edge)}
+.prow:first-child{border-top:0}
+.prow.off{background:rgba(210,63,63,.12)}
+.prow .n{color:var(--muted);font-size:.8em;align-self:center;text-align:right}
+.pc{padding:6px 8px;border:1px dashed var(--edge);border-radius:6px;min-height:34px;overflow-wrap:anywhere;cursor:pointer;background:var(--paper)}
+.pc.sel{outline:2px solid var(--red);background:rgba(210,63,63,.1)}
+.pc.empty{color:var(--muted)}
+.alist{max-height:30vh;overflow:auto;margin:4px 0}
+.alist div{padding:2px 0}
 .danger{background:var(--red)!important;border-color:var(--red)!important;color:#fff!important}
 .empty{color:var(--muted);padding:8px 0}
-@media (max-width:520px){.cols{grid-template-columns:1fr}}
+select{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--edge);border-radius:8px;padding:8px}
+@media (max-width:520px){.cols{gap:8px}.ta{font-size:.9rem}.ta textarea{padding-left:34px}.mir{padding-left:34px}.ln::before{left:-30px;width:24px}}
 
 /* study */
 .scene{perspective:1200px;margin:18px 0}
@@ -82,18 +109,29 @@ main{overflow-x:clip}
   <h1>Flashcard</h1>
   <p class="sub">วางคำในช่องซ้าย คำแปลในช่องขวา บรรทัดเดียวกันจะจับคู่กันเอง</p>
 
-  <label for="name">ชื่อชุด</label>
+  <label>ใช้ทำการ์ดอะไร</label>
+  <label class="opt"><input type="radio" name="dtype" value="enth" checked> คำศัพท์อังกฤษ-ไทย (ช่องซ้ายอังกฤษ ช่องขวาไทย)</label>
+  <label class="opt"><input type="radio" name="dtype" value="custom"> กำหนดเอง (ใส่คำและคำแปลเอง ไม่ตรวจอะไรให้)</label>
+
+  <label for="name" style="margin-top:14px">ชื่อชุด</label>
   <input id="name" placeholder="เช่น ผลไม้และสัตว์">
 
-  <div class="cols">
+  <div class="row" style="margin-top:14px">
+    <input id="find" placeholder="ค้นหาคำ หรือพิมพ์เลขบรรทัดเพื่อไปบรรทัดนั้น" style="flex:1;min-width:0">
+    <button id="findBtn">ไป</button>
+    <button id="pairOpen">จัดคู่เอง</button>
+  </div>
+  <div class="count" id="findStatus"></div>
+
+  <div class="cols" id="cols">
     <div>
-      <label for="colA">คำ</label>
-      <textarea id="colA" placeholder="Apple&#10;Bird"></textarea>
+      <label for="colA" id="lblA">คำ (อังกฤษ)</label>
+      <div class="ta"><div class="mir" aria-hidden="true"><div class="mi"></div></div><textarea id="colA" placeholder="Apple&#10;Bird"></textarea></div>
       <div class="count" id="cntA"></div>
     </div>
     <div>
-      <label for="colB">คำแปล</label>
-      <textarea id="colB" placeholder="แอปเปิ้ล&#10;นก"></textarea>
+      <label for="colB" id="lblB">คำแปล (ไทย)</label>
+      <div class="ta"><div class="mir" aria-hidden="true"><div class="mi"></div></div><textarea id="colB" placeholder="แอปเปิ้ล&#10;นก"></textarea></div>
       <div class="count" id="cntB"></div>
     </div>
   </div>
@@ -111,10 +149,70 @@ main{overflow-x:clip}
       <label class="opt"><input type="radio" name="ms" value="merge" checked> ดึงขึ้นไปต่อท้ายคำก่อนหน้า เช่น bird (n.)</label>
       <label class="opt"><input type="radio" name="ms" value="drop"> ลบบรรทัดนั้นทิ้ง</label>
     </div>
+    <div id="cleanAmb" hidden>
+      <p>บรรทัดที่เป็นแค่คำว่า นาม/กริยา/noun/verb ฯลฯ ไม่มีวงเล็บหรือจุด อาจเป็นคำจริงก็ได้ <span id="nAmb"></span> จุด <span class="ex">เช่น <span id="exAmb"></span></span></p>
+      <label class="opt"><input type="radio" name="ma" value="keep" checked> เก็บไว้เป็นคำ (ไม่นับเป็นคำบอกชนิดคำ)</label>
+      <label class="opt"><input type="radio" name="ma" value="merge"> ดึงขึ้นไปต่อท้ายคำก่อนหน้า</label>
+      <label class="opt"><input type="radio" name="ma" value="drop"> ลบบรรทัดนั้นทิ้ง</label>
+    </div>
     <div class="row">
       <button class="primary" id="cleanOk">ทำตามที่เลือกแล้วบันทึก</button>
       <button id="cleanSkip">บันทึกตามเดิม</button>
       <button id="cleanCancel">ยกเลิก</button>
+    </div>
+  </div>
+
+  <div class="clean" id="langBox" hidden>
+    <b>พบภาษาปนกัน</b>
+    <div id="langA" hidden>
+      <p>มีภาษาไทยปนอยู่ในช่องอังกฤษ <span id="nLA"></span> จุด <span class="ex">เช่น <span id="exLA"></span></span></p>
+      <label class="opt"><input type="radio" name="la" value="keep" checked> เก็บไว้ตามเดิม</label>
+      <label class="opt"><input type="radio" name="la" value="strip"> ลบเฉพาะส่วนที่เป็นไทยออก (ถ้าไม่เหลืออะไร ลบทั้งแถว)</label>
+      <label class="opt"><input type="radio" name="la" value="drop"> ลบทั้งแถว (ทั้งคำและคำแปล)</label>
+    </div>
+    <div id="langB" hidden>
+      <p>มีภาษาอังกฤษปนอยู่ในช่องไทย <span id="nLB"></span> จุด <span class="ex">เช่น <span id="exLB"></span></span></p>
+      <label class="opt"><input type="radio" name="lb" value="keep" checked> เก็บไว้ตามเดิม</label>
+      <label class="opt"><input type="radio" name="lb" value="strip"> ลบเฉพาะส่วนที่เป็นอังกฤษออก (ถ้าไม่เหลืออะไร ลบทั้งแถว)</label>
+      <label class="opt"><input type="radio" name="lb" value="drop"> ลบทั้งแถว (ทั้งคำและคำแปล)</label>
+    </div>
+    <div class="row">
+      <button class="primary" id="langOk">ทำตามที่เลือกแล้วบันทึก</button>
+      <button id="langSkip">บันทึกตามเดิม</button>
+      <button id="langCancel">ยกเลิก</button>
+    </div>
+  </div>
+
+  <div class="clean" id="alignBox" hidden>
+    <b>พบจุดที่อาจไม่ตรงกัน</b>
+    <div id="alUn" hidden>
+      <p>บรรทัดที่มีแค่ช่องเดียว อีกช่องว่าง <span id="nUn"></span> จุด ถ้าบันทึกตอนนี้ บรรทัดเหล่านี้จะถูกข้าม ไม่ถูกทำเป็นการ์ด</p>
+      <div class="alist" id="unList"></div>
+    </div>
+    <div id="alRun" hidden>
+      <p>มีบรรทัดว่างติดกันเกิน 1 บรรทัดระหว่างคำ</p>
+      <div class="alist" id="runList"></div>
+    </div>
+    <div class="row">
+      <button class="primary" id="alignBack">กลับไปแก้</button>
+      <button id="alignFix" hidden>ลบบรรทัดว่างที่ซ้ำ (เหลือ 1)</button>
+      <button id="alignPair">จัดคู่เอง</button>
+      <button id="alignSkip">บันทึกตามเดิม</button>
+    </div>
+  </div>
+
+  <div class="clean" id="pairBox" hidden>
+    <b>จัดคู่เอง</b>
+    <p class="count">แตะคำที่อยากย้าย แล้วแตะแถวปลายทางในช่องเดียวกัน (บนคอมลากแล้ววางก็ได้) แถวสีแดงอ่อนคือแถวที่อีกฝั่งยังว่าง</p>
+    <div class="row" id="pairTools" hidden>
+      <button id="pInsert">แทรกช่องว่างเหนือช่องนี้</button>
+      <button id="pDel">ลบช่องว่างนี้</button>
+      <button id="pUnsel">ยกเลิกการเลือก</button>
+    </div>
+    <div class="plist" id="pairList"></div>
+    <div class="row">
+      <button class="primary" id="pairDone">ใช้การจับคู่นี้</button>
+      <button id="pairCancel">ยกเลิก</button>
     </div>
   </div>
 
@@ -151,7 +249,7 @@ main{overflow-x:clip}
       <button class="no" id="noBtn">← ยังไม่แม่น</button>
       <button class="yes" id="yesBtn">จำได้แล้ว →</button>
     </div>
-    <p class="hint">ปัดการ์ดหรือกดลูกศรซ้าย/ขวาได้เหมือนกัน ใบที่ยังไม่แม่นจะวนกลับมาให้ทบทวน</p>
+    <p class="hint">ปัดการ์ดหรือกดลูกศรซ้าย/ขวาได้เหมือนกัน ใบที่ยังไม่แม่นจะกลับมาอีกครั้งหลังผ่านไป 5 ใบ</p>
   </div>
 
   <div class="done" id="done" hidden>
@@ -196,7 +294,8 @@ function pairs(d){
 function lineCount(t){ const s = t.replace(/\s+$/, ''); return s ? s.split('\n').length : 0; }
 
 function updateCounts(){
-  $('cleanBox').hidden = true;
+  $('cleanBox').hidden = true; $('langBox').hidden = true; $('alignBox').hidden = true;
+  alignActive = false; curLine = -1; paint();
   const a = lineCount($('colA').value), b = lineCount($('colB').value);
   $('cntA').textContent = a + ' บรรทัด';
   $('cntB').textContent = b + ' บรรทัด';
@@ -220,7 +319,7 @@ function renderList(){
     el.className = 'deck';
     const info = document.createElement('div');
     const b = document.createElement('b'); b.textContent = d.name;
-    const s = document.createElement('small'); s.textContent = pairs(d).length + ' คำ';
+    const s = document.createElement('small'); s.textContent = pairs(d).length + ' คำ (' + (d.type === 'enth' ? 'อังกฤษ-ไทย' : 'กำหนดเอง') + ')';
     info.append(b, s);
     const acts = document.createElement('div');
     acts.className = 'row'; acts.style.margin = '0';
@@ -236,14 +335,14 @@ function renderList(){
 }
 
 function clearForm(){
-  editingId = null;
+  editingId = null; setType('enth');
   $('name').value = ''; $('colA').value = ''; $('colB').value = '';
   $('saveBtn').textContent = 'บันทึกชุดนี้';
   updateCounts();
 }
 
 function commit(A, B){
-  const d = { id: editingId || String(Date.now()), name: $('name').value.trim() || 'ชุดไม่มีชื่อ', colA: A, colB: B };
+  const d = { id: editingId || String(Date.now()), name: $('name').value.trim() || 'ชุดไม่มีชื่อ', colA: A, colB: B, type: getType() };
   if (!pairs(d).length){ const m = $('match'); m.textContent = 'ยังไม่มีคู่คำ ใส่คำทั้งสองช่องก่อน'; m.className = 'count warn'; return; }
   const i = decks.findIndex(x => x.id === d.id);
   if (i >= 0) decks[i] = d; else decks.push(d);
@@ -263,22 +362,31 @@ const INLINE_PAREN = new RegExp('\\s*[(\\[（]\\s*' + SEQ_B + SEP + '[)\\]）]\\
 const INLINE_BARE = new RegExp('^(.*?\\S)\\s+' + SEQ_BARE + SEP + '$', 'i');
 const IN_BRACKET = new RegExp('^' + SEQ_B + SEP + '$', 'i');
 const LINE_BARE = new RegExp('^' + SEQ_BARE + SEP + '$', 'i');
-function isMarkerLine(t){
+const WF = '(?:' + THFULL + '|' + ENFULL + ')';
+const LINE_FULL = new RegExp('^' + WF + '(?:' + SEP + WF + ')*' + SEP + '$', 'i');
+// 'marker' = ชัดเจน (มีวงเล็บ/จุด) / 'amb' = เป็นคำเต็มล้วน อาจเป็นคำจริง / null = ไม่ใช่
+function classifyLine(t){
   const m = t.match(/^[(\[（](.+)[)\]）]$/);
-  if (m) return IN_BRACKET.test(m[1].trim());
-  return LINE_BARE.test(t);
+  if (m) return IN_BRACKET.test(m[1].trim()) ? 'marker' : null;
+  if (LINE_BARE.test(t)) return /\./.test(t) ? 'marker' : 'amb';
+  return LINE_FULL.test(t) ? 'amb' : null;
 }
 // mi: 'keep' | 'remove' (ติดอยู่หลังคำ) / ms: 'merge' | 'drop' (อยู่คนละบรรทัด)
-function process(text, mi, ms){
-  const out = [], r = { nIn:0, nSep:0, exIn:'', exSep:'' };
+function process(text, mi, ms, ma){
+  ma = ma || 'keep';
+  const out = [], r = { nIn:0, nSep:0, nAmb:0, exIn:'', exSep:'', exAmb:'' };
   text.split('\n').forEach(line => {
     const t = line.trim();
-    if (t && isMarkerLine(t)){
-      r.nSep++;
+    const kind = t ? classifyLine(t) : null;
+    if (kind){
+      const amb = kind === 'amb', mode = amb ? ma : ms;
+      amb ? r.nAmb++ : r.nSep++;
       let j = out.length - 1;
       while (j >= 0 && !out[j].trim()) j--;          // ข้ามบรรทัดว่าง หาคำก่อนหน้าที่อยู่ใกล้สุด
-      if (!r.exSep && j >= 0) r.exSep = out[j].trim() + '  ↵  ' + t;
-      if (ms === 'merge' && j >= 0) out[j] = out[j].trimEnd() + ' ' + (/^[(\[（]/.test(t) ? t : '(' + t + ')');
+      const ex = j >= 0 ? out[j].trim() + '  ↵  ' + t : '';
+      if (amb){ if (!r.exAmb) r.exAmb = ex || t; } else if (!r.exSep) r.exSep = ex;
+      if (mode === 'keep'){ out.push(line); return; }
+      if (mode === 'merge' && j >= 0) out[j] = out[j].trimEnd() + ' ' + (/^[(\[（]/.test(t) ? t : '(' + t + ')');
       return;
     }
     let l = line, m;
@@ -297,34 +405,265 @@ function process(text, mi, ms){
 
 $('saveBtn').onclick = () => {
   const A = $('colA').value, B = $('colB').value;
-  const a = process(A, 'keep', 'merge'), b = process(B, 'keep', 'merge');
-  const nIn = a.nIn + b.nIn, nSep = a.nSep + b.nSep;
-  if (!nIn && !nSep){ commit(A, B); return; }
-  $('cleanInline').hidden = !nIn; $('cleanSep').hidden = !nSep;
+  if (getType() === 'custom'){ alignStep(A, B); return; }   // กำหนดเอง: ข้ามการตรวจภาษา เหลือแค่เช็กการจับคู่
+  const a = process(A, 'keep', 'merge', 'keep'), b = process(B, 'keep', 'merge', 'keep');
+  const nIn = a.nIn + b.nIn, nSep = a.nSep + b.nSep, nAmb = a.nAmb + b.nAmb;
+  if (!nIn && !nSep && !nAmb){ langStep(A, B); return; }
+  $('cleanInline').hidden = !nIn; $('cleanSep').hidden = !nSep; $('cleanAmb').hidden = !nAmb;
   $('nIn').textContent = nIn; $('exIn').textContent = a.exIn || b.exIn;
   $('nSep').textContent = nSep; $('exSep').textContent = a.exSep || b.exSep;
+  $('nAmb').textContent = nAmb; $('exAmb').textContent = a.exAmb || b.exAmb;
   $('cleanBox').hidden = false;
   $('cleanBox').scrollIntoView({ block:'nearest' });
 };
 $('cleanOk').onclick = () => {
-  const mi = document.querySelector('input[name=mi]:checked').value;
-  const ms = document.querySelector('input[name=ms]:checked').value;
-  const A = process($('colA').value, mi, ms).text, B = process($('colB').value, mi, ms).text;
+  const v = n => document.querySelector('input[name=' + n + ']:checked').value;
+  const A = process($('colA').value, v('mi'), v('ms'), v('ma')).text;
+  const B = process($('colB').value, v('mi'), v('ms'), v('ma')).text;
   $('colA').value = A; $('colB').value = B;
-  commit(A, B);
+  langStep(A, B);
 };
-$('cleanSkip').onclick = () => commit($('colA').value, $('colB').value);
+$('cleanSkip').onclick = () => langStep($('colA').value, $('colB').value);
 $('cleanCancel').onclick = () => { $('cleanBox').hidden = true; };
 
+// ---- ประเภทชุด และตรวจภาษาปน (เฉพาะอังกฤษ-ไทย)
+const getType = () => document.querySelector('input[name=dtype]:checked').value;
+function setType(t){
+  document.querySelector('input[name=dtype][value=' + t + ']').checked = true;
+  $('lblA').textContent = t === 'enth' ? 'คำ (อังกฤษ)' : 'คำ';
+  $('lblB').textContent = t === 'enth' ? 'คำแปล (ไทย)' : 'คำแปล';
+}
+document.querySelectorAll('input[name=dtype]').forEach(r => { r.onchange = () => setType(getType()); });
+const THA = /[\u0E00-\u0E7F]/, LAT = /[A-Za-z]/;
+const tidy = x => x.replace(/[(\[（][\s.,;:\/&\-]*[)\]）]/g, '').replace(/\s{2,}/g, ' ').trim();
+// คำบอกชนิดคำ เช่น (n.) ไม่นับเป็นภาษาปน
+const base = x => classifyLine(x.trim()) === 'marker' ? '' : process(x, 'remove', 'keep').text;
+function langScan(A, B, ma, mb){
+  const la = A.split('\n'), lb = B.split('\n'), del = new Set();
+  const r = { nA:0, nB:0, exA:'', exB:'' };
+  for (let k = 0; k < Math.max(la.length, lb.length); k++){
+    const a = la[k] || '', b = lb[k] || '';
+    if (THA.test(base(a))){
+      r.nA++; if (!r.exA) r.exA = a.trim();
+      if (ma === 'drop') del.add(k);
+      if (ma === 'strip'){ const t = tidy(a.replace(/[\u0E00-\u0E7F]+/g, '')); if (t) la[k] = t; else del.add(k); }
+    }
+    if (LAT.test(base(b))){
+      r.nB++; if (!r.exB) r.exB = b.trim();
+      if (mb === 'drop') del.add(k);
+      if (mb === 'strip'){ const t = tidy(b.replace(/[A-Za-z]+/g, '')); if (t) lb[k] = t; else del.add(k); }
+    }
+  }
+  [...del].sort((x, y) => y - x).forEach(k => { la.splice(k, 1); lb.splice(k, 1); });
+  return Object.assign({ A: la.join('\n'), B: lb.join('\n') }, r);
+}
+function langStep(A, B){
+  $('cleanBox').hidden = true;
+  const r = langScan(A, B, 'keep', 'keep');
+  if (!r.nA && !r.nB){ alignStep(A, B); return; }
+  $('langA').hidden = !r.nA; $('langB').hidden = !r.nB;
+  $('nLA').textContent = r.nA; $('exLA').textContent = r.exA;
+  $('nLB').textContent = r.nB; $('exLB').textContent = r.exB;
+  $('langBox').hidden = false;
+  $('langBox').scrollIntoView({ block:'nearest' });
+}
+$('langOk').onclick = () => {
+  const v = n => document.querySelector('input[name=' + n + ']:checked').value;
+  const r = langScan($('colA').value, $('colB').value, v('la'), v('lb'));
+  $('colA').value = r.A; $('colB').value = r.B;
+  alignStep(r.A, r.B);
+};
+$('langSkip').onclick = () => alignStep($('colA').value, $('colB').value);
+$('langCancel').onclick = () => { $('langBox').hidden = true; };
+
+// ---- เช็กการจับคู่: บรรทัดที่อีกช่องว่าง / บรรทัดว่างติดกันเกิน 1
+function alignScan(A, B){
+  const la = A.split('\n'), lb = B.split('\n'), r = { un: [], runs: [] };
+  for (let k = 0; k < Math.max(la.length, lb.length); k++){
+    const a = (la[k] || '').trim(), b = (lb[k] || '').trim();
+    if (!a !== !b) r.un.push({ line: k + 1, side: a ? 'คำ' : 'คำแปล', t: a || b });
+  }
+  [['คำ', la], ['คำแปล', lb]].forEach(([name, ls]) => {
+    const first = ls.findIndex(x => x.trim());
+    let last = ls.length - 1; while (last >= 0 && !ls[last].trim()) last--;
+    if (first < 0) return;
+    let k = first;
+    while (k <= last){
+      if (ls[k].trim()){ k++; continue; }
+      let j = k; while (j <= last && !ls[j].trim()) j++;
+      if (j - k >= 2) r.runs.push({ name, from: k + 1, to: j, len: j - k });
+      k = j;
+    }
+  });
+  return r;
+}
+let alignActive = false, alignShow = false, lastAlign = null, curLine = -1;
+function syncMir(ta){
+  const w = ta.parentElement, mir = w.querySelector('.mir'), mi = w.querySelector('.mi');
+  mir.style.paddingRight = (10 + Math.max(0, ta.offsetWidth - ta.clientWidth - 2)) + 'px';
+  mi.style.transform = 'translateY(' + (-ta.scrollTop) + 'px)';
+}
+// วาดไฮไลต์ทับช่องข้อความ: ตัวแดง = บรรทัดที่มีคำแต่อีกช่องว่าง / แถบแดงอ่อน = บรรทัดว่างที่มีปัญหา
+function paint(){
+  ['A', 'B'].forEach(c => {
+    const ta = $('col' + c), w = ta.parentElement, mi = w.querySelector('.mi'), r = alignActive ? lastAlign : null;
+    w.classList.toggle('hl', !!r); mi.textContent = '';
+    const bad = new Set(), blank = new Set(), isA = c === 'A';
+    if (r){
+      r.un.forEach(x => { if ((x.side === 'คำ') === isA) bad.add(x.line - 1); else blank.add(x.line - 1); });
+      r.runs.forEach(x => { if ((x.name === 'คำ') === isA) for (let i = x.from - 1; i < x.to; i++) blank.add(i); });
+    }
+    ta.value.split('\n').forEach((t, i) => {
+      const d = document.createElement('div');
+      d.className = 'ln' + (bad.has(i) ? ' bad' : '') + (blank.has(i) ? ' blank' : '') + (i === curLine ? ' cur' : '');
+      d.textContent = t || '\u200b'; mi.appendChild(d);
+    });
+    syncMir(ta);
+  });
+}
+function renderAlign(r){
+  alignActive = true; lastAlign = r;
+  const fill = (box, rows) => {
+    box.textContent = '';
+    rows.forEach(([line, label, rest]) => {
+      const d = document.createElement('div'), b = document.createElement('button');
+      b.className = 'lnk'; b.dataset.line = line; b.textContent = label;
+      d.append(b, rest); box.appendChild(d);
+    });
+  };
+  $('alUn').hidden = !r.un.length; $('alRun').hidden = !r.runs.length; $('alignFix').hidden = !r.runs.length;
+  $('nUn').textContent = r.un.length;
+  fill($('unList'), r.un.slice(0, 30).map(x => [x.line, 'บรรทัด ' + x.line, ': ช่อง' + x.side + ' "' + x.t + '" แต่อีกช่องว่าง'])
+    .concat(r.un.length > 30 ? [[r.un[30].line, 'อีก ' + (r.un.length - 30) + ' จุด', ' (กดเพื่อไปจุดถัดไป)']] : []));
+  fill($('runList'), r.runs.slice(0, 30).map(x => [x.from, 'บรรทัด ' + x.from + '-' + x.to, ': ช่อง' + x.name + ' ว่างติดกัน ' + x.len + ' บรรทัด']));
+  $('alignBox').hidden = !alignShow;
+  paint();
+}
+function alignStep(A, B){
+  $('cleanBox').hidden = true; $('langBox').hidden = true;
+  const r = alignScan(A, B);
+  if (!r.un.length && !r.runs.length){ commit(A, B); return; }
+  alignShow = true; curLine = -1; renderAlign(r);
+  $('alignBox').scrollIntoView({ block:'nearest' });
+}
+// แก้ไขไปด้วยแล้วรายการ/ไฮไลต์อัปเดตสดๆ
+function refreshAlign(){
+  const r = alignScan($('colA').value, $('colB').value);
+  if (!r.un.length && !r.runs.length){
+    alignActive = false; paint(); $('alignBox').hidden = true;
+    const m = $('match'); m.textContent = 'ไม่พบจุดที่ไม่ตรงแล้ว กดบันทึกได้เลย'; m.className = 'count'; return;
+  }
+  renderAlign(r);
+}
+function jumpTo(k){
+  curLine = k; paint();
+  ['colA', 'colB'].forEach(id => {
+    const ta = $(id), el = ta.parentElement.querySelectorAll('.mi .ln')[k];
+    if (el) ta.scrollTop = Math.max(0, el.offsetTop - ta.clientHeight / 3);
+    syncMir(ta);
+  });
+  $('cols').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+$('alignBox').addEventListener('click', e => { const b = e.target.closest('.lnk'); if (b) jumpTo(Number(b.dataset.line) - 1); });
+['colA', 'colB'].forEach(id => {
+  const ta = $(id);
+  ta.addEventListener('scroll', () => syncMir(ta));
+  if (window.ResizeObserver) new ResizeObserver(() => syncMir(ta)).observe(ta);
+});
+const squash = t => t.split('\n').reduce((o, l) => { if (!(l.trim() === '' && o.length && o[o.length - 1].trim() === '')) o.push(l); return o; }, []).join('\n');
+$('alignBack').onclick = () => { alignShow = false; $('alignBox').hidden = true; };   // ไฮไลต์ยังอยู่ ระหว่างแก้
+$('alignSkip').onclick = () => commit($('colA').value, $('colB').value);
+$('alignFix').onclick = () => {
+  $('colA').value = squash($('colA').value); $('colB').value = squash($('colB').value);
+  updateCounts(); refreshAlign();
+};
+
+// ---- ค้นหา / ไปบรรทัด
+function findStep(){
+  const q = $('find').value.trim(), st = $('findStatus');
+  if (!q){ st.textContent = ''; return; }
+  const la = $('colA').value.split('\n'), lb = $('colB').value.split('\n'), n = Math.max(la.length, lb.length);
+  if (/^\d+$/.test(q)){
+    const k = Number(q);
+    if (k < 1 || k > n){ st.textContent = 'มีทั้งหมด ' + n + ' บรรทัด'; return; }
+    jumpTo(k - 1); st.textContent = 'ไปที่บรรทัด ' + k; return;
+  }
+  const low = q.toLowerCase(), hits = [];
+  for (let k = 0; k < n; k++) if (((la[k] || '') + '\n' + (lb[k] || '')).toLowerCase().includes(low)) hits.push(k);
+  if (!hits.length){ st.textContent = 'ไม่พบ "' + q + '"'; return; }
+  const nx = hits.find(k => k > curLine), k = nx === undefined ? hits[0] : nx;
+  jumpTo(k);
+  st.textContent = 'พบ ' + hits.length + ' บรรทัด ตอนนี้อยู่บรรทัด ' + (k + 1) + (hits.length > 1 ? ' กด "ไป" อีกครั้งเพื่อดูอันถัดไป' : '');
+}
+$('findBtn').onclick = findStep;
+$('find').addEventListener('keydown', e => { if (e.key === 'Enter') findStep(); });
+
+// ---- จัดคู่เอง: ย้ายคำในช่องเดียวกันให้ไปอยู่แถวเดียวกับคู่ของมัน
+let pa = [], pb = [], psel = null;
+function renderPair(){
+  const n = Math.max(pa.length, pb.length);
+  while (pa.length < n) pa.push(''); while (pb.length < n) pb.push('');
+  while (pa.length > 1 && !pa[pa.length - 1].trim() && !pb[pb.length - 1].trim()){ pa.pop(); pb.pop(); }
+  const box = $('pairList'), top = box.scrollTop; box.textContent = '';
+  pa.forEach((_, i) => {
+    const row = document.createElement('div');
+    row.className = 'prow' + (!pa[i].trim() !== !pb[i].trim() ? ' off' : '');
+    const num = document.createElement('div'); num.className = 'n'; num.textContent = i + 1; row.appendChild(num);
+    ['A', 'B'].forEach(c => {
+      const v = (c === 'A' ? pa : pb)[i], d = document.createElement('div');
+      d.className = 'pc' + (v.trim() ? '' : ' empty') + (psel && psel.c === c && psel.i === i ? ' sel' : '');
+      d.textContent = v.trim() ? v : '(ว่าง)'; d.dataset.c = c; d.dataset.i = i; d.draggable = true;
+      row.appendChild(d);
+    });
+    box.appendChild(row);
+  });
+  box.scrollTop = top;
+  $('pairTools').hidden = !psel;
+  if (psel) $('pDel').hidden = (psel.c === 'A' ? pa : pb)[psel.i].trim() !== '';
+}
+const moveCell = (c, from, to) => { const arr = c === 'A' ? pa : pb; arr.splice(to, 0, arr.splice(from, 1)[0]); };
+function openPair(){
+  pa = $('colA').value.split('\n'); pb = $('colB').value.split('\n'); psel = null;
+  $('alignBox').hidden = true; $('pairBox').hidden = false; renderPair();
+  $('pairBox').scrollIntoView({ block:'nearest' });
+}
+$('pairOpen').onclick = $('alignPair').onclick = openPair;
+$('pairList').addEventListener('click', e => {
+  const d = e.target.closest('.pc'); if (!d) return;
+  const c = d.dataset.c, i = Number(d.dataset.i);
+  if (!psel || psel.c !== c) psel = { c, i };
+  else if (psel.i === i) psel = null;
+  else { moveCell(c, psel.i, i); psel = null; }
+  renderPair();
+});
+$('pairList').addEventListener('dragstart', e => { const d = e.target.closest('.pc'); if (d) e.dataTransfer.setData('text/plain', d.dataset.c + ':' + d.dataset.i); });
+$('pairList').addEventListener('dragover', e => { if (e.target.closest('.pc')) e.preventDefault(); });
+$('pairList').addEventListener('drop', e => {
+  const d = e.target.closest('.pc'); if (!d) return; e.preventDefault();
+  const [c, i] = e.dataTransfer.getData('text/plain').split(':');
+  if (c === d.dataset.c && Number(i) !== Number(d.dataset.i)){ moveCell(c, Number(i), Number(d.dataset.i)); psel = null; renderPair(); }
+});
+$('pInsert').onclick = () => { (psel.c === 'A' ? pa : pb).splice(psel.i, 0, ''); psel = null; renderPair(); };
+$('pDel').onclick = () => { (psel.c === 'A' ? pa : pb).splice(psel.i, 1); psel = null; renderPair(); };
+$('pUnsel').onclick = () => { psel = null; renderPair(); };
+$('pairCancel').onclick = () => { $('pairBox').hidden = true; };
+$('pairDone').onclick = () => {
+  $('colA').value = pa.join('\n').replace(/\n+$/, ''); $('colB').value = pb.join('\n').replace(/\n+$/, '');
+  $('pairBox').hidden = true; updateCounts();
+  const r = alignScan($('colA').value, $('colB').value);
+  if (r.un.length || r.runs.length){ alignShow = true; renderAlign(r); }
+  else { const m = $('match'); m.textContent = 'จับคู่ครบแล้ว กดบันทึกได้เลย'; m.className = 'count'; }
+};
+
 $('clearBtn').onclick = clearForm;
-$('colA').oninput = $('colB').oninput = updateCounts;
+$('colA').oninput = $('colB').oninput = () => { const keep = alignActive; updateCounts(); if (keep) refreshAlign(); };
 
 $('list').onclick = e => {
   const btn = e.target.closest('button'); if (!btn) return;
   const d = decks.find(x => x.id === btn.dataset.id); if (!d) return;
   if (btn.dataset.act === 'study') startStudy(d);
   if (btn.dataset.act === 'edit'){
-    editingId = d.id; $('name').value = d.name; $('colA').value = d.colA; $('colB').value = d.colB;
+    editingId = d.id; setType(d.type || 'custom'); $('name').value = d.name; $('colA').value = d.colA; $('colB').value = d.colB;
     $('saveBtn').textContent = 'อัปเดตชุดนี้'; updateCounts(); window.scrollTo({top:0});
   }
   if (btn.dataset.act === 'del'){
@@ -357,7 +696,7 @@ $('importFile').onchange = e => {
       if (!Array.isArray(data)) throw 0;
       data.forEach((d, n) => {
         if (typeof d.colA === 'string' && typeof d.colB === 'string')
-          decks.push({ id: Date.now() + '-' + n, name: String(d.name || 'ชุดนำเข้า'), colA: d.colA, colB: d.colB });
+          decks.push({ id: Date.now() + '-' + n, name: String(d.name || 'ชุดนำเข้า'), colA: d.colA, colB: d.colB, type: d.type === 'enth' ? 'enth' : 'custom' });
       });
       saveDecks(); renderList();
     } catch(err){ alert('อ่านไฟล์ไม่ได้ ต้องเป็นไฟล์สำรองที่ดาวน์โหลดจากหน้านี้'); }
@@ -402,7 +741,7 @@ function answer(isKnown){
   sc.classList.add(isKnown ? 'go-right' : 'go-left');
   setTimeout(() => {
     const c = queue.shift(); played++;
-    if (isKnown) known++; else queue.push(c);
+    if (isKnown) known++; else queue.splice(Math.min(5, queue.length), 0, c);   // ไม่รู้ = ไปเป็นใบที่ 6 นับจากใบถัดไป
     sc.classList.remove('go-right', 'go-left');
     busy = false; show();
   }, 260);
@@ -412,6 +751,7 @@ $('yesBtn').onclick = () => answer(true);
 $('noBtn').onclick = () => answer(false);
 $('againBtn').onclick = begin;
 $('shuffleBtn').onclick = () => {
+  if (busy) return;
   for (let i = queue.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [queue[i], queue[j]] = [queue[j], queue[i]]; }
   show();
 };
